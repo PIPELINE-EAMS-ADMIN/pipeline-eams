@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Pipeline EAMS</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0B0F14">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pipeline EAMS">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="icon" href="./icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+  :root{
+    --bg:#0B0F14; --panel:#121A22; --panel2:#17212B; --border:#233040;
+    --text:#E7ECF1; --muted:#8A97A3; --amber:#E8A33D; --amber-dim:#4A3A1E;
+    --green:#3DDC84; --green-dim:#153826; --red:#E5484D; --red-dim:#3A1A1C;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); color:var(--text); font-family:'Inter',sans-serif;}
+  .screen{min-height:100vh; padding:24px 18px 60px;}
+  .wrap{max-width:1100px; margin:0 auto;}
+  h1,h2,h3{font-family:'Barlow Condensed',sans-serif; text-transform:uppercase; letter-spacing:0.5px; margin:0;}
+  .brand{font-size:26px; font-weight:700; color:var(--text);}
+  .brand .amber{color:var(--amber);}
+  .sub{font-size:12px; color:var(--muted); font-family:'IBM Plex Mono',monospace; margin-top:4px;}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:16px;}
+  .btn{padding:12px 18px; border-radius:10px; border:none; font-family:'Barlow Condensed',sans-serif; font-size:16px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; cursor:pointer;}
+  .btn.primary{background:var(--amber); color:#1A1300;}
+  .btn.ghost{background:transparent; border:1px solid var(--border); color:var(--text);}
+  .btn.danger{background:var(--red-dim); color:var(--red); border:1px solid var(--red);}
+  .btn:disabled{opacity:.4; cursor:not-allowed;}
+  .btn.block{width:100%;}
+  input,select{background:var(--panel2); color:var(--text); border:1px solid var(--border); padding:11px 12px; border-radius:8px; font-family:'Inter',sans-serif; font-size:14px; width:100%;}
+  label{font-size:11px; color:var(--muted); font-family:'IBM Plex Mono',monospace; text-transform:uppercase; display:block; margin-bottom:5px; margin-top:12px;}
+  .row{display:flex; gap:12px; flex-wrap:wrap;}
+  .row > *{flex:1; min-width:140px;}
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th{text-align:left; color:var(--muted); font-family:'IBM Plex Mono',monospace; font-size:10px; text-transform:uppercase; padding:8px; border-bottom:1px solid var(--border);}
+  td{padding:9px 8px; border-bottom:1px solid var(--border);}
+  .pill{font-family:'IBM Plex Mono',monospace; font-size:10px; padding:3px 9px; border-radius:20px; display:inline-block;}
+  .pill.ok{background:var(--green-dim); color:var(--green);}
+  .pill.warn{background:var(--amber-dim); color:var(--amber);}
+  .pill.bad{background:var(--red-dim); color:var(--red);}
+  .tabs{display:flex; gap:0; border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:18px; flex-wrap:wrap;}
+  .tabs button{padding:10px 16px; background:var(--panel); color:var(--muted); border:none; cursor:pointer; font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:600; text-transform:uppercase;}
+  .tabs button.active{background:var(--amber); color:#1A1300;}
+  .hide{display:none !important;}
+  a.link{color:var(--amber); text-decoration:none; font-family:'IBM Plex Mono',monospace; font-size:12px;}
+  a.link:hover{text-decoration:underline;}
+  .msg{font-size:12px; padding:10px 12px; border-radius:8px; margin-top:10px;}
+  .msg.err{background:var(--red-dim); color:var(--red);}
+  .msg.ok{background:var(--green-dim); color:var(--green);}
+  .topbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px;}
+  .center-box{max-width:380px; margin:60px auto 0;}
+  #map{height:300px; border-radius:10px; margin-top:10px;}
+  .cam-box{width:220px; aspect-ratio:1/1; border:2px dashed var(--border); border-radius:12px; overflow:hidden; position:relative; background:#0d141b; margin:10px 0;}
+  .cam-box video, .cam-box img{width:100%; height:100%; object-fit:cover; display:block;}
+  .cam-box.captured{border-color:var(--green); border-style:solid;}
+  .stat{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--muted); display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border);}
+  .stat span:last-child{color:var(--text);}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  @media(max-width:700px){.grid2{grid-template-columns:1fr;}}
+  .loader{font-family:'IBM Plex Mono',monospace; color:var(--muted); font-size:12px; padding:20px; text-align:center;}
+</style>
+</head>
+<body>
+
+<div id="app"><div class="loader">Loading Pipeline EAMS…</div></div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
+<!-- Leaflet for movement map -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- SheetJS for Excel export -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<script>
+/* ================= FIREBASE CONFIG ================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyDjTlKCHzg_oPqHcX-g4SCYYa5bEQwIQ6s",
+  authDomain: "pipeline-eams.firebaseapp.com",
+  projectId: "pipeline-eams",
+  storageBucket: "pipeline-eams.firebasestorage.app",
+  messagingSenderId: "679067645015",
+  appId: "1:679067645015:web:7fb1e82d82b361af9cdf12"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
+
+/* ================= UTILITIES ================= */
+function pad(n){ return n.toString().padStart(2,'0'); }
+function todayStr(d=new Date()){ return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; }
+function timeStr(d=new Date()){ return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }
+function fmtMin(mins){
+  if(mins==null) return '—';
+  const sign = mins<0 ? '-' : '+';
+  const a = Math.abs(mins);
+  const h = Math.floor(a/60), m = a%60;
+  return `${mins===0?'':sign}${h}h ${m}m`;
+}
+function getLoc(){
+  return new Promise(res=>{
+    if(!navigator.geolocation){ res(null); return; }
+    navigator.geolocation.getCurrentPosition(
+      p=>res({lat:+p.coords.latitude.toFixed(5), lng:+p.coords.longitude.toFixed(5)}),
+      ()=>res(null), {timeout:8000, enableHighAccuracy:true}
+    );
+  });
+}
+async function startCam(videoEl){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}, audio:false});
+    videoEl.srcObject = stream; await videoEl.play();
+    return stream;
+  }catch(e){ return null; }
+}
+function stopCam(stream){ if(stream) stream.getTracks().forEach(t=>t.stop()); }
+function snap(videoEl){
+  const c = document.createElement('canvas');
+  c.width = videoEl.videoWidth||300; c.height = videoEl.videoHeight||300;
+  c.getContext('2d').drawImage(videoEl,0,0,c.width,c.height);
+  return c.toDataURL('image/jpeg',0.75);
+}
+async function uploadPhoto(dataUrl, path){
+  const ref = storage.ref().child(path);
+  await ref.putString(dataUrl, 'data_url');
+  return await ref.getDownloadURL();
+}
+// shift definitions: start/end in minutes-from-midnight; crossesMidnight for C shift
+function shiftMinutesRange(def){
+  const [sh,sm] = def.start.split(':').map(Number);
+  const [eh,em] = def.end.split(':').map(Number);
+  let start = sh*60+sm, end = eh*60+em;
+  if(def.crossesMidnight) end += 24*60;
+  return {start, end, duration: end-start};
+}
+
+/* ================= SEED SHIFT DEFS (first run) ================= */
+async function ensureShiftDefs(){
+  const defs = {
+    A: {label:'A Shift', start:'07:00', end:'15:00', crossesMidnight:false, isOff:false},
+    B: {label:'B Shift', start:'15:00', end:'23:00', crossesMidnight:false, isOff:false},
+    C: {label:'C Shift', start:'23:00', end:'07:00', crossesMidnight:true,  isOff:false},
+    G: {label:'G Shift', start:'08:30', end:'17:00', crossesMidnight:false, isOff:false},
+    W: {label:'Weekly Off', start:'00:00', end:'00:00', crossesMidnight:false, isOff:true},
+  };
+  for(const code in defs){
+    const ref = db.collection('shiftDefs').doc(code);
+    const doc = await ref.get();
+    if(!doc.exists) await ref.set(defs[code]);
+  }
+}
+
+/* ================= APP ROOT / ROUTER ================= */
+const app = document.getElementById('app');
+let currentRoute = 'landing';
+
+function render(){
+  if(currentRoute==='landing') renderLanding();
+  else if(currentRoute==='adminLogin') renderAdminLogin();
+  else if(currentRoute==='adminHome') renderAdminHome();
+  else if(currentRoute==='staffLogin') renderStaffLogin();
+  else if(currentRoute==='staffConsent') renderStaffConsent();
+  else if(currentRoute==='staffHome') renderStaffHome();
+}
+
+function renderLanding(){
+  app.innerHTML = `
+    <div class="screen">
+      <div class="center-box">
+        <div style="text-align:center; margin-bottom:34px;">
+          <div class="brand">PIPELINE <span class="amber">EAMS</span></div>
+          <div class="sub">ENTERPRISE ATTENDANCE MANAGEMENT SYSTEM</div>
+        </div>
+        <div class="card">
+          <button class="btn primary block" id="goStaff">Staff Window</button>
+        </div>
+        <div class="card">
+          <button class="btn ghost block" id="goAdmin">Admin Login</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('goStaff').onclick = ()=>{ currentRoute='staffLogin'; render(); };
+  document.getElementById('goAdmin').onclick = ()=>{ currentRoute='adminLogin'; render(); };
+}
+
+/* ================= ADMIN: LOGIN ================= */
+function renderAdminLogin(){
+  app.innerHTML = `
+    <div class="screen">
+      <div class="center-box">
+        <div style="text-align:center; margin-bottom:24px;">
+          <div class="brand">Admin Login</div>
+        </div>
+        <div class="card">
+          <label>Email</label>
+          <input type="email" id="aEmail" placeholder="you@example.com">
+          <label>Password</label>
+          <input type="password" id="aPass" placeholder="••••••••">
+          <button class="btn primary block" id="aLoginBtn" style="margin-top:16px;">Login</button>
+          <div id="aErr"></div>
+          <div class="sub" style="margin-top:14px; text-align:center;">First time? <a class="link" href="#" id="aSignup">Create admin account</a></div>
+        </div>
+        <button class="btn ghost block" id="aBack">← Back</button>
+      </div>
+    </div>`;
+  document.getElementById('aBack').onclick = ()=>{ currentRoute='landing'; render(); };
+  document.getElementById('aLoginBtn').onclick = async ()=>{
+    const email = document.getElementById('aEmail').value.trim();
+    const pass = document.getElementById('aPass').value;
+    const errBox = document.getElementById('aErr');
+    errBox.innerHTML = '';
+    try{
+      await auth.signInWithEmailAndPassword(email, pass);
+      await ensureShiftDefs();
+      currentRoute='adminHome'; render();
+    }catch(e){
+      errBox.innerHTML = `<div class="msg err">${e.message}</div>`;
+    }
+  };
+  document.getElementById('aSignup').onclick = async (e)=>{
+    e.preventDefault();
+    const email = document.getElementById('aEmail').value.trim();
+    const pass = document.getElementById('aPass').value;
+    const errBox = document.getElementById('aErr');
+    if(!email || pass.length<6){ errBox.innerHTML = `<div class="msg err">Enter an email and a password of at least 6 characters, then tap "Create admin account" again.</div>`; return; }
+    try{
+      await auth.createUserWithEmailAndPassword(email, pass);
+      await ensureShiftDefs();
+      currentRoute='adminHome'; render();
+    }catch(e2){
+      errBox.innerHTML = `<div class="msg err">${e2.message}</div>`;
+    }
+  };
+}
+
+/* ================= ADMIN: HOME (tabs) ================= */
+let adminTab = 'staff';
+async function renderAdminHome(){
+  app.innerHTML = `
+    <div class="screen">
+      <div class="wrap">
+        <div class="topbar">
+          <div>
+            <div class="brand">SC3 <span class="amber">Dashboard</span></div>
+            <div class="sub">${auth.currentUser ? auth.currentUser.email : ''}</div>
+          </div>
+          <button class="btn ghost" id="logoutBtn">Logout</button>
+        </div>
+        <div class="tabs">
+          <button data-t="staff" class="${adminTab==='staff'?'active':''}">Manage Staff</button>
+          <button data-t="shifts" class="${adminTab==='shifts'?'active':''}">Shift Timings</button>
+          <button data-t="schedule" class="${adminTab==='schedule'?'active':''}">Schedule</button>
+          <button data-t="reports" class="${adminTab==='reports'?'active':''}">Reports</button>
+          <button data-t="alerts" class="${adminTab==='alerts'?'active':''}">Alerts</button>
+        </div>
+        <div id="adminTabBody"></div>
+      </div>
+    </div>`;
+  document.getElementById('logoutBtn').onclick = async ()=>{ await auth.signOut(); currentRoute='landing'; render(); };
+  document.querySelectorAll('.tabs button').forEach(b=>{
+    b.onclick = ()=>{ adminTab = b.dataset.t; renderAdminTab(); };
+  });
+  renderAdminTab();
+}
+
+async function renderAdminTab(){
+  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active', b.dataset.t===adminTab));
+  const body = document.getElementById('adminTabBody');
+  if(adminTab==='staff') return renderStaffMgmt(body);
+  if(adminTab==='shifts') return renderShiftMgmt(body);
+  if(adminTab==='schedule') return renderScheduleMgmt(body);
+  if(adminTab==='reports') return renderReports(body);
+  if(adminTab==='alerts') return renderAlerts(body);
+}
+
+/* ---- Manage Staff (create up to 7 users) ---- */
+async function renderStaffMgmt(body){
+  body.innerHTML = `<div class="loader">Loading staff…</div>`;
+  const snap = await db.collection('staff').orderBy('name').get();
+  const rows = snap.docs.map(d=>{
+    const s = d.data();
+    return `<tr>
+      <td>${d.id}</td><td>${s.name}</td><td>${s.sector||'—'}</td>
+      <td>${s.pin}</td>
+      <td><span class="pill ${s.active!==false?'ok':'bad'}">${s.active!==false?'Active':'Disabled'}</span></td>
+      <td><button class="btn ghost" style="padding:6px 10px;font-size:12px;" data-toggle="${d.id}" data-active="${s.active!==false}">${s.active!==false?'Disable':'Enable'}</button></td>
+    </tr>`;
+  }).join('');
+  body.innerHTML = `
+    <div class="card">
+      <h3>Add Staff (${snap.size}/7)</h3>
+      <div class="row">
+        <div><label>Staff ID</label><input id="nId" placeholder="e.g. S1"></div>
+        <div><label>Name</label><input id="nName" placeholder="Full name"></div>
+        <div><label>Sector</label><input id="nSector" placeholder="e.g. Sector 4"></div>
+        <div><label>4-digit PIN</label><input id="nPin" maxlength="4" placeholder="1234"></div>
+      </div>
+      <button class="btn primary" id="addStaffBtn" style="margin-top:14px;" ${snap.size>=7?'disabled':''}>Add Staff</button>
+      <div id="staffMsg"></div>
+      ${snap.size>=7?'<div class="sub" style="margin-top:8px;">Maximum of 7 staff reached.</div>':''}
+    </div>
+    <div class="card">
+      <h3>Current Staff</h3>
+      <table>
+        <tr><th>ID</th><th>Name</th><th>Sector</th><th>PIN</th><th>Status</th><th></th></tr>
+        ${rows || '<tr><td colspan="6" class="sub">No staff added yet.</td></tr>'}
+      </table>
+    </div>`;
+  document.getElementById('addStaffBtn').onclick = async ()=>{
+    const id = document.getElementById('nId').value.trim();
+    const name = document.getElementById('nName').value.trim();
+    const sector = document.getElementById('nSector').value.trim();
+    const pin = document.getElementById('nPin').value.trim();
+    const msg = document.getElementById('staffMsg');
+    if(!id || !name || !/^\d{4}$/.test(pin)){
+      msg.innerHTML = `<div class="msg err">Enter Staff ID, Name, and a 4-digit PIN.</div>`; return;
+    }
+    const existing = await db.collection('staff').doc(id).get();
+    if(existing.exists){ msg.innerHTML = `<div class="msg err">Staff ID already exists.</div>`; return; }
+    await db.collection('staff').doc(id).set({name, sector, pin, active:true, consentAcceptedAt:null});
+    renderStaffMgmt(body);
+  };
+  document.querySelectorAll('[data-toggle]').forEach(b=>{
+    b.onclick = async ()=>{
+      const id = b.dataset.toggle;
+      const isActive = b.dataset.active === 'true';
+      await db.collection('staff').doc(id).update({active: !isActive});
+      renderStaffMgmt(body);
+    };
+  });
+}
+
+/* ---- Shift Timings (edit A/B/C/G/W) ---- */
+async function renderShiftMgmt(body){
+  body.innerHTML = `<div class="loader">Loading shift timings…</div>`;
+  const snap = await db.collection('shiftDefs').get();
+  const rowsHtml = snap.docs.map(d=>{
+    const s = d.data();
+    return `<div class="card">
+      <div class="row" style="align-items:flex-end;">
+        <div><label>Code</label><input value="${d.id}" disabled></div>
+        <div><label>Label</label><input id="lbl_${d.id}" value="${s.label}"></div>
+        ${s.isOff ? '<div class="sub" style="align-self:center;">Weekly off — no working hours</div>' : `
+        <div><label>Start</label><input type="time" id="start_${d.id}" value="${s.start}"></div>
+        <div><label>End</label><input type="time" id="end_${d.id}" value="${s.end}"></div>
+        <div><label>Crosses midnight?</label><select id="cross_${d.id}"><option value="false" ${!s.crossesMidnight?'selected':''}>No</option><option value="true" ${s.crossesMidnight?'selected':''}>Yes (e.g. C shift)</option></select></div>`}
+      </div>
+      <button class="btn ghost" style="margin-top:12px;" data-save="${d.id}">Save ${d.id}</button>
+    </div>`;
+  }).join('');
+  body.innerHTML = `<h3 style="margin-bottom:14px;">Shift Timing Definitions</h3>` + rowsHtml;
+  document.querySelectorAll('[data-save]').forEach(b=>{
+    b.onclick = async ()=>{
+      const code = b.dataset.save;
+      const label = document.getElementById(`lbl_${code}`).value;
+      const update = {label};
+      const startEl = document.getElementById(`start_${code}`);
+      if(startEl){
+        update.start = startEl.value;
+        update.end = document.getElementById(`end_${code}`).value;
+        update.crossesMidnight = document.getElementById(`cross_${code}`).value === 'true';
+      }
+      await db.collection('shiftDefs').doc(code).update(update);
+      b.textContent = 'Saved ✓';
+      setTimeout(()=>{ b.textContent = `Save ${code}`; }, 1500);
+    };
+  });
+}
+
+/* ---- Schedule Upload/Edit ---- */
+async function renderScheduleMgmt(body){
+  const staffSnap = await db.collection('staff').orderBy('name').get();
+  const staffOptions = staffSnap.docs.map(d=>`<option value="${d.id}">${d.data().name} (${d.id})</option>`).join('');
+  body.innerHTML = `
+    <div class="card">
+      <h3>Assign Shift — Single Day</h3>
+      <div class="row">
+        <div><label>Staff</label><select id="sStaff">${staffOptions}</select></div>
+        <div><label>Date</label><input type="date" id="sDate" value="${todayStr()}"></div>
+        <div><label>Shift Code</label><select id="sCode"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="G">G</option><option value="W">W-Off</option></select></div>
+      </div>
+      <button class="btn primary" id="singleSaveBtn" style="margin-top:14px;">Save</button>
+      <div id="singleMsg"></div>
+    </div>
+    <div class="card">
+      <h3>Bulk Upload — Date Range</h3>
+      <div class="sub" style="margin-bottom:10px;">Apply one shift code across a date range in one go — e.g. set a whole month to G shift, then override individual days above.</div>
+      <div class="row">
+        <div><label>Staff</label><select id="bStaff">${staffOptions}</select></div>
+        <div><label>From</label><input type="date" id="bFrom" value="${todayStr()}"></div>
+        <div><label>To</label><input type="date" id="bTo" value="${todayStr()}"></div>
+        <div><label>Shift Code</label><select id="bCode"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="G">G</option><option value="W">W-Off</option></select></div>
+      </div>
+      <button class="btn primary" id="bulkSaveBtn" style="margin-top:14px;">Apply to Range</button>
+      <div id="bulkMsg"></div>
+    </div>
+    <div class="card">
+      <h3>View / Edit Schedule</h3>
+      <div class="row">
+        <div><label>Staff</label><select id="vStaff">${staffOptions}</select></div>
+        <div><label>From</label><input type="date" id="vFrom" value="${todayStr()}"></div>
+        <div><label>To</label><input type="date" id="vTo" value="${todayStr()}"></div>
+      </div>
+      <button class="btn ghost" id="viewBtn" style="margin-top:14px;">Load</button>
+      <div id="viewTable" style="margin-top:14px;"></div>
+    </div>`;
+
+  document.getElementById('singleSaveBtn').onclick = async ()=>{
+    const staffId = document.getElementById('sStaff').value;
+    const date = document.getElementById('sDate').value;
+    const code = document.getElementById('sCode').value;
+    const msg = document.getElementById('singleMsg');
+    if(!staffId || !date){ msg.innerHTML = `<div class="msg err">Select staff and date.</div>`; return; }
+    await db.collection('schedule').doc(`${staffId}_${date}`).set({staffId, date, shiftCode:code});
+    msg.innerHTML = `<div class="msg ok">Saved: ${staffId} → ${date} → ${code}</div>`;
+  };
+
+  document.getElementById('bulkSaveBtn').onclick = async ()=>{
+    const staffId = document.getElementById('bStaff').value;
+    const from = new Date(document.getElementById('bFrom').value);
+    const to = new Date(document.getElementById('bTo').value);
+    const code = document.getElementById('bCode').value;
+    const msg = document.getElementById('bulkMsg');
+    if(!staffId || from>to){ msg.innerHTML = `<div class="msg err">Check staff and date range.</div>`; return; }
+    let batch = db.batch(); let count = 0;
+    for(let d=new Date(from); d<=to; d.setDate(d.getDate()+1)){
+      const dateStr = todayStr(d);
+      const ref = db.collection('schedule').doc(`${staffId}_${dateStr}`);
+      batch.set(ref, {staffId, date:dateStr, shiftCode:code});
+      count++;
+      if(count % 400 === 0){ await batch.commit(); batch = db.batch(); }
+    }
+    await batch.commit();
+    msg.innerHTML = `<div class="msg ok">Applied ${code} to ${count} day(s) for ${staffId}.</div>`;
+  };
+
+  document.getElementById('viewBtn').onclick = async ()=>{
+    const staffId = document.getElementById('vStaff').value;
+    const from = document.getElementById('vFrom').value;
+    const to = document.getElementById('vTo').value;
+    const snap = await db.collection('schedule').where('staffId','==',staffId).where('date','>=',from).where('date','<=',to).orderBy('date').get();
+    const rows = snap.docs.map(d=>{
+      const s = d.data();
+      return `<tr><td>${s.date}</td><td>${s.shiftCode}</td></tr>`;
+    }).join('');
+    document.getElementById('viewTable').innerHTML = `<table><tr><th>Date</th><th>Shift</th></tr>${rows || '<tr><td colspan="2" class="sub">No schedule found for this range.</td></tr>'}</table>`;
+  };
+}
+
+/* ---- Reports (Daily / Weekly / Monthly + Map + Export) ---- */
+let reportMode = 'daily';
+async function renderReports(body){
+  const staffSnap = await db.collection('staff').orderBy('name').get();
+  const staffOptions = staffSnap.docs.map(d=>`<option value="${d.id}">${d.data().name} (${d.id})</option>`).join('');
+  body.innerHTML = `
+    <div class="card">
+      <div class="tabs" style="margin-bottom:14px;">
+        <button data-r="daily" class="${reportMode==='daily'?'active':''}">Daily</button>
+        <button data-r="weekly" class="${reportMode==='weekly'?'active':''}">Weekly</button>
+        <button data-r="monthly" class="${reportMode==='monthly'?'active':''}">Monthly</button>
+      </div>
+      <div class="row">
+        <div><label>Staff</label><select id="rStaff">${staffOptions}</select></div>
+        <div><label>${reportMode==='daily'?'Date':(reportMode==='weekly'?'Week starting':'Month')}</label>
+          ${reportMode==='monthly' ? `<input type="month" id="rDate" value="${todayStr().slice(0,7)}">` : `<input type="date" id="rDate" value="${todayStr()}">`}
+        </div>
+      </div>
+      <button class="btn primary" id="loadReportBtn" style="margin-top:14px;">Load Report</button>
+      <button class="btn ghost" id="exportXlsxBtn" style="margin-top:14px;">Download Excel</button>
+      <button class="btn ghost" id="exportPdfBtn" style="margin-top:14px;">Download PDF</button>
+    </div>
+    <div id="reportOut"></div>`;
+  document.querySelectorAll('.tabs button[data-r]').forEach(b=>{
+    b.onclick = ()=>{ reportMode = b.dataset.r; renderReports(body); };
+  });
+  document.getElementById('loadReportBtn').onclick = ()=>loadReport();
+  document.getElementById('exportXlsxBtn').onclick = ()=>exportReport('xlsx');
+  document.getElementById('exportPdfBtn').onclick = ()=>exportReport('pdf');
+}
+
+let lastReportRows = []; // for export
+let lastReportStaff = '';
+
+async function getShiftDefsMap(){
+  const snap = await db.collection('shiftDefs').get();
+  const m = {}; snap.docs.forEach(d=>m[d.id]=d.data()); return m;
+}
+
+async function computeDayRow(staffId, date, defsMap){
+  const schedSnap = await db.collection('schedule').doc(`${staffId}_${date}`).get();
+  const shiftCode = schedSnap.exists ? schedSnap.data().shiftCode : null;
+  const attSnap = await db.collection('attendance').doc(`${staffId}_${date}`).get();
+  const att = attSnap.exists ? attSnap.data() : null;
+  let scheduledMin = null, actualMin = null, variance = null, status = 'No Schedule';
+  if(shiftCode){
+    const def = defsMap[shiftCode];
+    if(def && !def.isOff){
+      scheduledMin = shiftMinutesRange(def).duration;
+      status = 'Scheduled';
+    } else if(def && def.isOff){
+      status = 'Weekly Off';
+    }
+  }
+  let checkinT = '—', checkoutT = '—';
+  if(att && att.checkin){ checkinT = att.checkin.time; }
+  if(att && att.checkout){ checkoutT = att.checkout.time; }
+  if(att && att.checkin && att.checkout){
+    const [h1,m1] = att.checkin.time.split(':').map(Number);
+    const [h2,m2] = att.checkout.time.split(':').map(Number);
+    let start = h1*60+m1, end = h2*60+m2;
+    if(end < start) end += 24*60; // crossed midnight
+    actualMin = end - start;
+    status = 'Completed';
+    if(scheduledMin!=null) variance = actualMin - scheduledMin;
+  } else if(shiftCode && defsMap[shiftCode] && !defsMap[shiftCode].isOff){
+    status = (att && att.checkin) ? 'In Progress' : 'Not Started';
+  }
+  return {date, shiftCode: shiftCode||'—', scheduledMin, actualMin, variance, status, checkinT, checkoutT, att};
+}
+
+async function loadReport(){
+  const staffId = document.getElementById('rStaff').value;
+  lastReportStaff = staffId;
+  const dateVal = document.getElementById('rDate').value;
+  const out = document.getElementById('reportOut');
+  out.innerHTML = `<div class="loader">Computing report…</div>`;
+  const defsMap = await getShiftDefsMap();
+  let dates = [];
+  if(reportMode==='daily'){ dates = [dateVal]; }
+  else if(reportMode==='weekly'){
+    const start = new Date(dateVal);
+    for(let i=0;i<7;i++){ const d=new Date(start); d.setDate(d.getDate()+i); dates.push(todayStr(d)); }
+  } else {
+    const [y,m] = dateVal.split('-').map(Number);
+    const daysInMonth = new Date(y, m, 0).getDate();
+    for(let i=1;i<=daysInMonth;i++){ dates.push(`${y}-${pad(m)}-${pad(i)}`); }
+  }
+  const rows = [];
+  for(const d of dates){ rows.push(await computeDayRow(staffId, d, defsMap)); }
+  lastReportRows = rows;
+
+  const totalSched = rows.reduce((a,r)=>a+(r.scheduledMin||0),0);
+  const totalActual = rows.reduce((a,r)=>a+(r.actualMin||0),0);
+  const totalVar = totalActual - totalSched;
+
+  const tableRows = rows.map(r=>`
+    <tr>
+      <td>${r.date}</td><td>${r.shiftCode}</td><td>${r.checkinT}</td><td>${r.checkoutT}</td>
+      <td>${r.scheduledMin!=null?fmtMin(r.scheduledMin).replace('+',''):'—'}</td>
+      <td>${r.actualMin!=null?fmtMin(r.actualMin).replace('+',''):'—'}</td>
+      <td>${r.variance!=null ? `<span class="pill ${r.variance<0?'bad':(r.variance>0?'warn':'ok')}">${fmtMin(r.variance)}</span>` : '—'}</td>
+      <td><span class="pill ${r.status==='Completed'?'ok':(r.status==='Weekly Off'?'ok':'warn')}">${r.status}</span></td>
+      <td>${r.att ? `<a class="link" href="#" data-map="${r.date}">View Map</a>` : '—'}</td>
+    </tr>`).join('');
+
+  out.innerHTML = `
+    <div class="grid2">
+      <div class="card"><div class="sub">TOTAL SCHEDULED</div><h2>${fmtMin(totalSched).replace('+','')}</h2></div>
+      <div class="card"><div class="sub">TOTAL ACTUAL</div><h2>${fmtMin(totalActual).replace('+','')}</h2></div>
+    </div>
+    <div class="card">
+      <div class="sub">NET VARIANCE (${totalVar<0?'SHORTFALL':'OVERTIME'})</div>
+      <h2 style="color:${totalVar<0?'var(--red)':(totalVar>0?'var(--amber)':'var(--green)')}">${fmtMin(totalVar)}</h2>
+    </div>
+    <div class="card" style="overflow-x:auto;">
+      <table>
+        <tr><th>Date</th><th>Shift</th><th>In</th><th>Out</th><th>Sched</th><th>Actual</th><th>Variance</th><th>Status</th><th>Map</th></tr>
+        ${tableRows || '<tr><td colspan="9" class="sub">No data.</td></tr>'}
+      </table>
+    </div>
+    <div class="card">
+      <h3>Movement Map</h3>
+      <div id="map"></div>
+      <div class="sub" style="margin-top:8px;">Tap "View Map" next to any date above to plot that day's check-in, station photos, verification pings, and check-out locations.</div>
+    </div>
+    <div class="card">
+      <h3>Photo & Ping Log</h3>
+      <div id="photoLogOut"></div>
+    </div>`;
+
+  document.querySelectorAll('[data-map]').forEach(el=>{
+    el.onclick = (e)=>{ e.preventDefault(); showMapForDate(staffId, el.dataset.map); };
+  });
+}
+
+let leafletMap = null;
+async function showMapForDate(staffId, date){
+  const attSnap = await db.collection('attendance').doc(`${staffId}_${date}`).get();
+  const photoLogOut = document.getElementById('photoLogOut');
+  if(!attSnap.exists){ photoLogOut.innerHTML = `<div class="sub">No data for ${date}.</div>`; return; }
+  const att = attSnap.data();
+  const points = [];
+  if(att.checkin) points.push({...att.checkin, label:'Check-in'});
+  (att.stationPhotos||[]).forEach((p,i)=>points.push({...p, label:`Station Photo ${i+1}`}));
+  (att.pings||[]).forEach((p,i)=>{ if(p.lat) points.push({...p, label:`Verification Ping ${i+1}`}); });
+  if(att.checkout) points.push({...att.checkout, label:'Check-out'});
+
+  if(leafletMap){ leafletMap.remove(); leafletMap=null; }
+  const mapDiv = document.getElementById('map');
+  if(!points.length){ mapDiv.innerHTML = '<div class="sub" style="padding:20px;">No location points captured this day.</div>'; }
+  else{
+    mapDiv.innerHTML = '';
+    leafletMap = L.map('map').setView([points[0].lat, points[0].lng], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© OpenStreetMap'}).addTo(leafletMap);
+    const latlngs = points.map(p=>[p.lat,p.lng]);
+    L.polyline(latlngs, {color:'#E8A33D'}).addTo(leafletMap);
+    points.forEach(p=>{
+      L.circleMarker([p.lat,p.lng], {radius:6, color:'#3DDC84', fillColor:'#3DDC84', fillOpacity:1})
+        .addTo(leafletMap).bindPopup(`${p.label}<br>${p.time||''}`);
+    });
+    leafletMap.fitBounds(latlngs);
+  }
+
+  const photoRows = [];
+  if(att.checkin) photoRows.push(['Check-in', att.checkin.time, att.checkin.photoURL]);
+  (att.stationPhotos||[]).forEach((p,i)=>photoRows.push([`Station Photo ${i+1}`, p.time, p.photoURL]));
+  if(att.checkout) photoRows.push(['Check-out', att.checkout.time, att.checkout.photoURL]);
+  (att.pings||[]).forEach((p,i)=>photoRows.push([`Verification Ping ${i+1}`, p.time, p.photoURL, p.captured]));
+
+  photoLogOut.innerHTML = `<table>
+    <tr><th>Event</th><th>Time</th><th>Photo</th></tr>
+    ${photoRows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]||'—'}</td><td>${r[2]?`<a class="link" href="${r[2]}" target="_blank">View photo</a>`:(r[3]===false?'<span class="pill bad">Missed</span>':'—')}</td></tr>`).join('')}
+  </table>`;
+}
+
+function exportReport(type){
+  if(!lastReportRows.length){ alert('Load a report first.'); return; }
+  if(type==='xlsx'){
+    const data = lastReportRows.map(r=>({
+      Date:r.date, Shift:r.shiftCode, 'Check-in':r.checkinT, 'Check-out':r.checkoutT,
+      'Scheduled (min)':r.scheduledMin, 'Actual (min)':r.actualMin, 'Variance (min)':r.variance, Status:r.status
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Report');
+    XLSX.writeFile(wb, `attendance_${lastReportStaff}_${todayStr()}.xlsx`);
+  } else {
+    window.print();
+  }
+}
+
+/* ---- Alerts (missed consecutive pings) ---- */
+async function renderAlerts(body){
+  body.innerHTML = `<div class="loader">Loading alerts…</div>`;
+  const snap = await db.collection('alerts').orderBy('createdAt','desc').limit(30).get();
+  const rows = snap.docs.map(d=>{
+    const a = d.data();
+    return `<tr><td>${a.staffId}</td><td>${a.date}</td><td>${a.time}</td><td>${a.reason}</td></tr>`;
+  }).join('');
+  body.innerHTML = `
+    <div class="card">
+      <h3>Recent Alerts</h3>
+      <div class="sub" style="margin-bottom:10px;">Fires when a staff member's location could not be captured for 2 consecutive verification pings. Refresh this tab to see the latest.</div>
+      <table><tr><th>Staff</th><th>Date</th><th>Time</th><th>Reason</th></tr>${rows || '<tr><td colspan="4" class="sub">No alerts.</td></tr>'}</table>
+    </div>`;
+}
+
+/* ================= STAFF: LOGIN ================= */
+let currentStaffId = null, currentStaffData = null;
+function renderStaffLogin(){
+  app.innerHTML = `
+    <div class="screen">
+      <div class="center-box">
+        <div style="text-align:center; margin-bottom:24px;">
+          <div class="brand">Staff Window</div>
+        </div>
+        <div class="card">
+          <label>Staff ID</label>
+          <input id="stId" placeholder="e.g. S1" autocapitalize="characters">
+          <label>PIN</label>
+          <input id="stPin" type="password" maxlength="4" placeholder="4-digit PIN">
+          <button class="btn primary block" id="stLoginBtn" style="margin-top:16px;">Login</button>
+          <div id="stErr"></div>
+        </div>
+        <button class="btn ghost block" id="stBack">← Back</button>
+      </div>
+    </div>`;
+  document.getElementById('stBack').onclick = ()=>{ currentRoute='landing'; render(); };
+  document.getElementById('stLoginBtn').onclick = async ()=>{
+    const id = document.getElementById('stId').value.trim();
+    const pin = document.getElementById('stPin').value.trim();
+    const errBox = document.getElementById('stErr');
+    errBox.innerHTML = '';
+    if(!auth.currentUser){ try{ await auth.signInAnonymously(); }catch(e){} }
+    const doc = await db.collection('staff').doc(id).get();
+    if(!doc.exists || doc.data().pin !== pin || doc.data().active===false){
+      errBox.innerHTML = `<div class="msg err">Incorrect Staff ID or PIN.</div>`; return;
+    }
+    currentStaffId = id; currentStaffData = doc.data();
+    if(!currentStaffData.consentAcceptedAt){ currentRoute='staffConsent'; }
+    else { currentRoute='staffHome'; }
+    render();
+  };
+}
+
+/* ================= STAFF: CONSENT (once) ================= */
+function renderStaffConsent(){
+  app.innerHTML = `
+    <div class="screen">
+      <div class="center-box">
+        <div class="card">
+          <h3 style="margin-bottom:14px;">Before You Begin</h3>
+          <div style="font-size:13px; line-height:1.7;">
+            This app records your shift attendance — check-in/out photos, time, and your location while you're on duty. This helps us confirm coverage, coordinate schedules, and reach you quickly if something comes up during your shift.
+            <br><br>
+            Location is only recorded during your working hours, never outside them. This information is visible only to your reporting supervisor and is used solely for attendance and duty coordination.
+            <br><br>
+            This is a standard part of your duty requirements — the same as signing an attendance register.
+          </div>
+          <label style="display:flex; gap:8px; align-items:flex-start; margin-top:16px; cursor:pointer;">
+            <input type="checkbox" id="consentCheck" style="width:auto; margin-top:3px;">
+            <span style="font-size:12px; color:var(--muted); text-transform:none; font-family:'Inter',sans-serif;">I have read this and agree to proceed.</span>
+          </label>
+          <button class="btn primary block" id="consentBtn" style="margin-top:16px;" disabled>Continue</button>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('consentCheck').onchange = (e)=>{ document.getElementById('consentBtn').disabled = !e.target.checked; };
+  document.getElementById('consentBtn').onclick = async ()=>{
+    await db.collection('staff').doc(currentStaffId).update({consentAcceptedAt: firebase.firestore.FieldValue.serverTimestamp()});
+    currentRoute='staffHome'; render();
+  };
+}
+
+/* ================= STAFF: HOME (shift + checkin/out + station photos) ================= */
+let shiftActive = false, pingTimers = [], stationCount = 0, missedPingStreak = 0;
+
+async function renderStaffHome(){
+  const date = todayStr();
+  const schedDoc = await db.collection('schedule').doc(`${currentStaffId}_${date}`).get();
+  const shiftCode = schedDoc.exists ? schedDoc.data().shiftCode : null;
+  const defsMap = await getShiftDefsMap();
+  const def = shiftCode ? defsMap[shiftCode] : null;
+  const attRef = db.collection('attendance').doc(`${currentStaffId}_${date}`);
+  const attDoc = await attRef.get();
+  const att = attDoc.exists ? attDoc.data() : {};
+  stationCount = (att.stationPhotos||[]).length;
+
+  app.innerHTML = `
+    <div class="screen">
+      <div class="wrap" style="max-width:420px;">
+        <div class="topbar">
+          <div>
+            <div class="brand" style="font-size:20px;">${currentStaffData.name}</div>
+            <div class="sub">${currentStaffData.sector||''} · ${date}</div>
+          </div>
+          <button class="btn ghost" id="stLogout" style="padding:8px 12px;font-size:12px;">Logout</button>
+        </div>
+        <div class="card">
+          <div class="stat"><span>Today's Shift</span><span>${def ? `${def.label} (${def.isOff?'Off':def.start+'–'+def.end})` : 'Not scheduled'}</span></div>
+          <div class="stat"><span>Status</span><span>${att.checkout ? 'Shift Complete' : (att.checkin ? 'On Duty' : 'Not Started')}</span></div>
+          <div class="stat"><span>Station Photos Today</span><span>${stationCount}</span></div>
+        </div>
+        <div id="staffAction"></div>
+      </div>
+    </div>`;
+
+  document.getElementById('stLogout').onclick = ()=>{
+    clearAllPingTimers();
+    currentStaffId=null; currentStaffData=null; currentRoute='landing'; render();
+  };
+
+  const actionBox = document.getElementById('staffAction');
+  if(!def || def.isOff){
+    actionBox.innerHTML = `<div class="card"><div class="sub">${def && def.isOff ? "You're marked as Weekly Off today." : "No shift scheduled for you today. Contact your supervisor if this seems wrong."}</div></div>`;
+    return;
+  }
+  if(!att.checkin){
+    actionBox.innerHTML = `<button class="btn primary block" id="startCheckinBtn">Start Check-In</button>`;
+    document.getElementById('startCheckinBtn').onclick = ()=>renderCaptureScreen('checkin', date, def, shiftCode);
+  } else if(!att.checkout){
+    actionBox.innerHTML = `
+      <button class="btn ghost block" id="addStationBtn" style="margin-bottom:10px;">Add Station Photo</button>
+      <button class="btn primary block" id="startCheckoutBtn">End Shift — Check-Out</button>`;
+    document.getElementById('addStationBtn').onclick = ()=>renderCaptureScreen('station', date, def, shiftCode);
+    document.getElementById('startCheckoutBtn').onclick = ()=>renderCaptureScreen('checkout', date, def, shiftCode);
+    if(!shiftActive){ startSilentPings(def); }
+  } else {
+    actionBox.innerHTML = `<div class="card"><div class="msg ok">Shift complete for today. See you next shift.</div></div>`;
+    clearAllPingTimers();
+  }
+}
+
+function renderCaptureScreen(kind, date, def, shiftCode){
+  const title = kind==='checkin' ? 'Check-In' : (kind==='checkout' ? 'Check-Out' : 'Station Photo');
+  app.innerHTML = `
+    <div class="screen">
+      <div class="wrap" style="max-width:420px;">
+        <h3 style="margin-bottom:14px;">${title}</h3>
+        <div class="card">
+          <div class="cam-box" id="camBox">
+            <video id="camVideo" autoplay playsinline muted></video>
+          </div>
+          <div class="stat"><span>Location</span><span id="locStat">Requesting…</span></div>
+          <button class="btn ghost block" id="captureBtn" style="margin-top:10px;">Capture Photo</button>
+          <button class="btn primary block" id="confirmBtn" style="margin-top:10px;" disabled>Confirm ${title}</button>
+          <button class="btn ghost block" id="cancelBtn" style="margin-top:10px;">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+  const video = document.getElementById('camVideo');
+  const locStat = document.getElementById('locStat');
+  let stream = null, dataUrl = null, loc = null;
+  startCam(video).then(s=>{ stream = s; if(!s){ document.getElementById('camBox').innerHTML = '<div class="sub" style="padding:20px;">Camera unavailable — check browser permissions.</div>'; } });
+  getLoc().then(l=>{ loc = l; locStat.textContent = l ? `${l.lat}, ${l.lng}` : 'Unavailable'; });
+
+  document.getElementById('captureBtn').onclick = ()=>{
+    if(!stream) return;
+    dataUrl = snap(video);
+    stopCam(stream);
+    document.getElementById('camBox').classList.add('captured');
+    document.getElementById('camBox').innerHTML = `<img src="${dataUrl}">`;
+    document.getElementById('confirmBtn').disabled = false;
+  };
+  document.getElementById('cancelBtn').onclick = ()=>{ if(stream) stopCam(stream); currentRoute='staffHome'; render(); };
+
+  document.getElementById('confirmBtn').onclick = async ()=>{
+    const btn = document.getElementById('confirmBtn'); btn.disabled = true; btn.textContent = 'Saving…';
+    const time = timeStr();
+    const path = `attendance/${currentStaffId}/${date}/${kind}_${Date.now()}.jpg`;
+    const photoURL = await uploadPhoto(dataUrl, path);
+    const attRef = db.collection('attendance').doc(`${currentStaffId}_${date}`);
+    const payload = {time, lat: loc?loc.lat:null, lng: loc?loc.lng:null, photoURL};
+    if(kind==='checkin'){
+      await attRef.set({staffId:currentStaffId, date, shiftCode: shiftCode||null, checkin:payload}, {merge:true});
+    } else if(kind==='checkout'){
+      await attRef.set({checkout:payload}, {merge:true});
+      clearAllPingTimers();
+    } else {
+      await attRef.set({stationPhotos: firebase.firestore.FieldValue.arrayUnion(payload)}, {merge:true});
+    }
+    currentRoute='staffHome'; render();
+  };
+}
+
+/* ---- Silent verification pings: while app open only, guaranteed 1/hour at random minute, no UI shown to staff ---- */
+function clearAllPingTimers(){ pingTimers.forEach(t=>clearTimeout(t)); pingTimers=[]; shiftActive=false; }
+
+function startSilentPings(def){
+  shiftActive = true;
+  const range = shiftMinutesRange(def);
+  const durationMin = Math.min(range.duration, 16*60); // cap safety
+  const hourBuckets = Math.ceil(durationMin/60);
+  for(let i=0;i<hourBuckets;i++){
+    const fireAtMin = i*60 + Math.floor(Math.random()*60);
+    if(fireAtMin >= durationMin) continue;
+    const delay = fireAtMin*60*1000;
+    const t = setTimeout(()=>silentPing(), delay);
+    pingTimers.push(t);
+  }
+}
+
+async function silentPing(){
+  const date = todayStr();
+  const attRef = db.collection('attendance').doc(`${currentStaffId}_${date}`);
+  const attDoc = await attRef.get();
+  if(!attDoc.exists || !attDoc.data().checkin || attDoc.data().checkout) return; // not on active shift anymore
+  const loc = await getLoc();
+  const captured = !!loc;
+  const entry = {time: timeStr(), lat: loc?loc.lat:null, lng: loc?loc.lng:null, captured};
+  await attRef.set({pings: firebase.firestore.FieldValue.arrayUnion(entry)}, {merge:true});
+  if(!captured){
+    missedPingStreak++;
+    if(missedPingStreak>=2){
+      await db.collection('alerts').add({
+        staffId: currentStaffId, date, time: timeStr(),
+        reason: '2 consecutive verification pings failed to capture location',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      missedPingStreak = 0;
+    }
+  } else {
+    missedPingStreak = 0;
+  }
+}
+
+/* ================= BOOT ================= */
+auth.onAuthStateChanged(()=>{ /* no-op: routing handled explicitly by user actions */ });
+render();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
