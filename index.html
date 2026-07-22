@@ -127,14 +127,16 @@ async function startCam(videoEl){
 function stopCam(stream){ if(stream) stream.getTracks().forEach(t=>t.stop()); }
 function snap(videoEl){
   const c = document.createElement('canvas');
-  c.width = videoEl.videoWidth||300; c.height = videoEl.videoHeight||300;
+  const maxDim = 480;
+  const vw = videoEl.videoWidth||480, vh = videoEl.videoHeight||480;
+  const scale = Math.min(1, maxDim/Math.max(vw,vh));
+  c.width = vw*scale; c.height = vh*scale;
   c.getContext('2d').drawImage(videoEl,0,0,c.width,c.height);
-  return c.toDataURL('image/jpeg',0.75);
+  return c.toDataURL('image/jpeg',0.55);
 }
-async function uploadPhoto(dataUrl, path){
-  const ref = storage.ref().child(path);
-  await ref.putString(dataUrl, 'data_url');
-  return await ref.getDownloadURL();
+async function savePhoto(dataUrl, meta){
+  const docRef = await db.collection('photos').add({...meta, imageBase64: dataUrl, createdAt: firebase.firestore.FieldValue.serverTimestamp()});
+  return docRef.id;
 }
 // shift definitions: start/end in minutes-from-midnight; crossesMidnight for C shift
 function shiftMinutesRange(def){
@@ -622,16 +624,31 @@ async function showMapForDate(staffId, date){
     leafletMap.fitBounds(latlngs);
   }
 
+  // fetch all photos captured this staff+date in one query, keyed by photoId
+  const photoSnap = await db.collection('photos').where('staffId','==',staffId).where('date','==',date).get();
+  const photoMap = {}; photoSnap.docs.forEach(d=>photoMap[d.id]=d.data());
+
   const photoRows = [];
-  if(att.checkin) photoRows.push(['Check-in', att.checkin.time, att.checkin.photoURL]);
-  (att.stationPhotos||[]).forEach((p,i)=>photoRows.push([`Station Photo ${i+1}`, p.time, p.photoURL]));
-  if(att.checkout) photoRows.push(['Check-out', att.checkout.time, att.checkout.photoURL]);
-  (att.pings||[]).forEach((p,i)=>photoRows.push([`Verification Ping ${i+1}`, p.time, p.photoURL, p.captured]));
+  if(att.checkin) photoRows.push(['Check-in', att.checkin.time, att.checkin.photoId]);
+  (att.stationPhotos||[]).forEach((p,i)=>photoRows.push([`Station Photo ${i+1}`, p.time, p.photoId]));
+  if(att.checkout) photoRows.push(['Check-out', att.checkout.time, att.checkout.photoId]);
+  (att.pings||[]).forEach((p,i)=>photoRows.push([`Verification Ping ${i+1}`, p.time, null, p.captured]));
 
   photoLogOut.innerHTML = `<table>
     <tr><th>Event</th><th>Time</th><th>Photo</th></tr>
-    ${photoRows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]||'—'}</td><td>${r[2]?`<a class="link" href="${r[2]}" target="_blank">View photo</a>`:(r[3]===false?'<span class="pill bad">Missed</span>':'—')}</td></tr>`).join('')}
+    ${photoRows.map(r=>`<tr><td>${r[0]}</td><td>${r[1]||'—'}</td><td>${r[2] && photoMap[r[2]] ? `<a class="link" href="#" data-photo="${r[2]}">View photo</a>` : (r[3]===false?'<span class="pill bad">Missed</span>':'—')}</td></tr>`).join('')}
   </table>`;
+  photoLogOut.querySelectorAll('[data-photo]').forEach(el=>{
+    el.onclick = (e)=>{ e.preventDefault(); showPhotoModal(photoMap[el.dataset.photo].imageBase64); };
+  });
+}
+
+function showPhotoModal(dataUrl){
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:999; display:flex; align-items:center; justify-content:center; padding:20px;';
+  overlay.innerHTML = `<img src="${dataUrl}" style="max-width:100%; max-height:90vh; border-radius:10px; border:2px solid #E8A33D;">`;
+  overlay.onclick = ()=>overlay.remove();
+  document.body.appendChild(overlay);
 }
 
 function exportReport(type){
@@ -828,10 +845,9 @@ function renderCaptureScreen(kind, date, def, shiftCode){
   document.getElementById('confirmBtn').onclick = async ()=>{
     const btn = document.getElementById('confirmBtn'); btn.disabled = true; btn.textContent = 'Saving…';
     const time = timeStr();
-    const path = `attendance/${currentStaffId}/${date}/${kind}_${Date.now()}.jpg`;
-    const photoURL = await uploadPhoto(dataUrl, path);
+    const photoId = await savePhoto(dataUrl, {staffId: currentStaffId, date, kind, time, lat: loc?loc.lat:null, lng: loc?loc.lng:null});
     const attRef = db.collection('attendance').doc(`${currentStaffId}_${date}`);
-    const payload = {time, lat: loc?loc.lat:null, lng: loc?loc.lng:null, photoURL};
+    const payload = {time, lat: loc?loc.lat:null, lng: loc?loc.lng:null, photoId};
     if(kind==='checkin'){
       await attRef.set({staffId:currentStaffId, date, shiftCode: shiftCode||null, checkin:payload}, {merge:true});
     } else if(kind==='checkout'){
