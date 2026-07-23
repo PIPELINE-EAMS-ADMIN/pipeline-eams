@@ -449,13 +449,34 @@ async function renderScheduleMgmt(body){
     viewTable.innerHTML = `<div class="sub">Loading…</div>`;
     try{
       const snap = await db.collection('schedule').where('staffId','==',staffId).get();
-      const rows = snap.docs
+      const entries = snap.docs
         .map(d=>d.data())
         .filter(s => s.date >= from && s.date <= to)
-        .sort((a,b)=> a.date.localeCompare(b.date))
-        .map(s=>`<tr><td>${s.date}</td><td>${s.shiftCode}</td></tr>`)
-        .join('');
-      viewTable.innerHTML = `<table><tr><th>Date</th><th>Shift</th></tr>${rows || '<tr><td colspan="2" class="sub">No schedule found for this range.</td></tr>'}</table>`;
+        .sort((a,b)=> a.date.localeCompare(b.date));
+      const codes = ['A','B','C','G','W'];
+      const rows = entries.map(s=>`
+        <tr>
+          <td>${s.date}</td>
+          <td>
+            <select data-edit-date="${s.date}" style="width:auto; padding:6px 8px;">
+              ${codes.map(c=>`<option value="${c}" ${c===s.shiftCode?'selected':''}>${c}</option>`).join('')}
+            </select>
+          </td>
+          <td><button class="btn ghost" style="padding:6px 10px; font-size:12px;" data-save-date="${s.date}">Save</button></td>
+        </tr>`).join('');
+      viewTable.innerHTML = `<table><tr><th>Date</th><th>Shift</th><th>Edit</th></tr>${rows || '<tr><td colspan="3" class="sub">No schedule found for this range.</td></tr>'}</table>`;
+
+      viewTable.querySelectorAll('[data-save-date]').forEach(btn=>{
+        btn.onclick = async ()=>{
+          const date = btn.dataset.saveDate;
+          const select = viewTable.querySelector(`[data-edit-date="${date}"]`);
+          const newCode = select.value;
+          btn.disabled = true; btn.textContent = 'Saving…';
+          await db.collection('schedule').doc(`${staffId}_${date}`).set({staffId, date, shiftCode:newCode});
+          btn.textContent = 'Saved ✓';
+          setTimeout(()=>{ btn.textContent='Save'; btn.disabled=false; }, 1200);
+        };
+      });
     } catch(err){
       viewTable.innerHTML = `<div class="msg err">Could not load: ${err.message}</div>`;
     }
