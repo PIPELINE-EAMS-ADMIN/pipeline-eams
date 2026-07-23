@@ -165,35 +165,15 @@ async function ensureShiftDefs(){
 
 /* ================= APP ROOT / ROUTER ================= */
 const app = document.getElementById('app');
-let currentRoute = 'landing';
+const isAdminEntry = new URLSearchParams(window.location.search).get('admin') === '1';
+let currentRoute = isAdminEntry ? 'adminLogin' : 'staffLogin';
 
 function render(){
-  if(currentRoute==='landing') renderLanding();
-  else if(currentRoute==='adminLogin') renderAdminLogin();
+  if(currentRoute==='adminLogin') renderAdminLogin();
   else if(currentRoute==='adminHome') renderAdminHome();
   else if(currentRoute==='staffLogin') renderStaffLogin();
   else if(currentRoute==='staffConsent') renderStaffConsent();
   else if(currentRoute==='staffHome') renderStaffHome();
-}
-
-function renderLanding(){
-  app.innerHTML = `
-    <div class="screen">
-      <div class="center-box">
-        <div style="text-align:center; margin-bottom:34px;">
-          <div class="brand">PIPELINE <span class="amber">EAMS</span></div>
-          <div class="sub">ENTERPRISE ATTENDANCE MANAGEMENT SYSTEM</div>
-        </div>
-        <div class="card">
-          <button class="btn primary block" id="goStaff">Staff Window</button>
-        </div>
-        <div class="card">
-          <button class="btn ghost block" id="goAdmin">Admin Login</button>
-        </div>
-      </div>
-    </div>`;
-  document.getElementById('goStaff').onclick = ()=>{ currentRoute='staffLogin'; render(); };
-  document.getElementById('goAdmin').onclick = ()=>{ currentRoute='adminLogin'; render(); };
 }
 
 /* ================= ADMIN: LOGIN ================= */
@@ -213,10 +193,8 @@ function renderAdminLogin(){
           <div id="aErr"></div>
           <div class="sub" style="margin-top:14px; text-align:center;">First time? <a class="link" href="#" id="aSignup">Create admin account</a></div>
         </div>
-        <button class="btn ghost block" id="aBack">← Back</button>
       </div>
     </div>`;
-  document.getElementById('aBack').onclick = ()=>{ currentRoute='landing'; render(); };
   document.getElementById('aLoginBtn').onclick = async ()=>{
     const email = document.getElementById('aEmail').value.trim();
     const pass = document.getElementById('aPass').value;
@@ -269,7 +247,7 @@ async function renderAdminHome(){
         <div id="adminTabBody"></div>
       </div>
     </div>`;
-  document.getElementById('logoutBtn').onclick = async ()=>{ await auth.signOut(); currentRoute='landing'; render(); };
+  document.getElementById('logoutBtn').onclick = async ()=>{ await auth.signOut(); currentRoute='adminLogin'; render(); };
   document.querySelectorAll('.tabs button').forEach(b=>{
     b.onclick = ()=>{ adminTab = b.dataset.t; renderAdminTab(); };
   });
@@ -700,10 +678,8 @@ function renderStaffLogin(){
           <button class="btn primary block" id="stLoginBtn" style="margin-top:16px;">Login</button>
           <div id="stErr"></div>
         </div>
-        <button class="btn ghost block" id="stBack">← Back</button>
       </div>
     </div>`;
-  document.getElementById('stBack').onclick = ()=>{ currentRoute='landing'; render(); };
   document.getElementById('stLoginBtn').onclick = async ()=>{
     const id = document.getElementById('stId').value.trim();
     const pin = document.getElementById('stPin').value.trim();
@@ -785,7 +761,7 @@ async function renderStaffHome(){
 
   document.getElementById('stLogout').onclick = ()=>{
     clearAllPingTimers();
-    currentStaffId=null; currentStaffData=null; currentRoute='landing'; render();
+    currentStaffId=null; currentStaffData=null; currentRoute='staffLogin'; render();
   };
 
   const actionBox = document.getElementById('staffAction');
