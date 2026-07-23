@@ -402,6 +402,11 @@ async function renderScheduleMgmt(body){
     const code = document.getElementById('sCode').value;
     const msg = document.getElementById('singleMsg');
     if(!staffId || !date){ msg.innerHTML = `<div class="msg err">Select staff and date.</div>`; return; }
+    const existing = await db.collection('schedule').doc(`${staffId}_${date}`).get();
+    if(existing.exists && existing.data().shiftCode !== code){
+      const ok = confirm(`${staffId} already has ${existing.data().shiftCode} assigned on ${date}. Overwrite it with ${code}?`);
+      if(!ok){ msg.innerHTML = `<div class="sub">Cancelled — existing schedule kept.</div>`; return; }
+    }
     await db.collection('schedule').doc(`${staffId}_${date}`).set({staffId, date, shiftCode:code});
     msg.innerHTML = `<div class="msg ok">Saved: ${staffId} → ${date} → ${code}</div>`;
   };
@@ -413,6 +418,17 @@ async function renderScheduleMgmt(body){
     const code = document.getElementById('bCode').value;
     const msg = document.getElementById('bulkMsg');
     if(!staffId || from>to){ msg.innerHTML = `<div class="msg err">Check staff and date range.</div>`; return; }
+
+    const fromStr = todayStr(from), toStr = todayStr(to);
+    const existingSnap = await db.collection('schedule').where('staffId','==',staffId).get();
+    const existingInRange = existingSnap.docs
+      .map(d=>d.data())
+      .filter(s => s.date >= fromStr && s.date <= toStr);
+    if(existingInRange.length){
+      const ok = confirm(`${existingInRange.length} day(s) in this range already have a shift assigned for ${staffId}. Overwrite them all with ${code}?`);
+      if(!ok){ msg.innerHTML = `<div class="sub">Cancelled — existing schedule kept.</div>`; return; }
+    }
+
     let batch = db.batch(); let count = 0;
     for(let d=new Date(from); d<=to; d.setDate(d.getDate()+1)){
       const dateStr = todayStr(d);
