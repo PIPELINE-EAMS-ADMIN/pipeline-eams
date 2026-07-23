@@ -429,12 +429,20 @@ async function renderScheduleMgmt(body){
     const staffId = document.getElementById('vStaff').value;
     const from = document.getElementById('vFrom').value;
     const to = document.getElementById('vTo').value;
-    const snap = await db.collection('schedule').where('staffId','==',staffId).where('date','>=',from).where('date','<=',to).orderBy('date').get();
-    const rows = snap.docs.map(d=>{
-      const s = d.data();
-      return `<tr><td>${s.date}</td><td>${s.shiftCode}</td></tr>`;
-    }).join('');
-    document.getElementById('viewTable').innerHTML = `<table><tr><th>Date</th><th>Shift</th></tr>${rows || '<tr><td colspan="2" class="sub">No schedule found for this range.</td></tr>'}</table>`;
+    const viewTable = document.getElementById('viewTable');
+    viewTable.innerHTML = `<div class="sub">Loading…</div>`;
+    try{
+      const snap = await db.collection('schedule').where('staffId','==',staffId).get();
+      const rows = snap.docs
+        .map(d=>d.data())
+        .filter(s => s.date >= from && s.date <= to)
+        .sort((a,b)=> a.date.localeCompare(b.date))
+        .map(s=>`<tr><td>${s.date}</td><td>${s.shiftCode}</td></tr>`)
+        .join('');
+      viewTable.innerHTML = `<table><tr><th>Date</th><th>Shift</th></tr>${rows || '<tr><td colspan="2" class="sub">No schedule found for this range.</td></tr>'}</table>`;
+    } catch(err){
+      viewTable.innerHTML = `<div class="msg err">Could not load: ${err.message}</div>`;
+    }
   };
 }
 
